@@ -1,0 +1,9 @@
+server:
+  compression:
+    enabled: true
+  servlet:
+    context-path: /
+spring:
+  mvc:
+    pathmatch:
+      use-suffix-pattern: false

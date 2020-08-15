@@ -1,0 +1,862 @@
+SpringBoot整合ES的三种方式（API、REST Client、Data-ES）
+
+文章目录
+1. 整合案例一（使用Java API）
+    1.1 依赖如下：
+    1.2 配置文件
+    1.3 控制器
+2. 整合案例二(使用REST Clinet)
+    2.1 引入依赖
+    2.2 配置文件
+    2.2.1 RestClientBuilder中的其中配置
+    2.3 控制器
+3. 整合案例三（使用Spring-data-es）
+
+
+1. 整合案例一（使用Java API）
+ 这种方式，官方已经明确表示在ES 7.0版本中将弃用TransportClient客户端，且在8.0版本中完全移除它，我在学习ES时，版本已经是6.4.0了。
+
+版本搭配：SpringBoot 2.0.5，ES 5.5.0
+
+1.1 依赖如下：
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>com.glodon</groupId>
+    <artifactId>elasticsearch_data</artifactId>
+    <version>1.0-SNAPSHOT</version>
+
+    <!--SpringBoot的基本父级依赖-->
+    <parent>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-parent</artifactId>
+        <version>1.5.6.RELEASE</version>
+    </parent>
+
+    <properties>
+        <java.version>1.8</java.version>
+        <elasticsearch.version>5.5.0</elasticsearch.version>
+    </properties>
+
+    <dependencies>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+        </dependency>
+        <!--springboot对web项目的支持-->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+        <!--引入spring-data-es的依赖-->
+        <dependency>
+            <groupId>org.elasticsearch.client</groupId>
+            <artifactId>transport</artifactId>
+            <version>${elasticsearch.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.logging.log4j</groupId>
+            <artifactId>log4j-core</artifactId>
+            <version>2.7</version>
+        </dependency>
+        <!--<dependency>-->
+            <!--<groupId>org.elasticsearch</groupId>-->
+            <!--<artifactId>elasticsearch</artifactId>-->
+            <!--<version>5.5.0</version>-->
+        <!--</dependency>-->
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-lang3</artifactId>
+            <version>3.8</version>
+        </dependency>
+
+
+        <!--引入ES推荐的操作客户端:rest-high-level-client-->
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+            </plugin>
+        </plugins>
+    </build>
+
+</project>
+
+1.2 配置文件
+@Configuration
+public class MyConfig {
+
+    @Bean
+    public TransportClient client() throws UnknownHostException {
+
+        // 指定集群名,默认为elasticsearch,如果改了集群名,这里一定要加
+        Settings settings = Settings.builder()
+                .put("cluster.name", "elasticsearch")
+                .build();
+
+        TransportClient client = new PreBuiltTransportClient(settings);
+
+        /*
+        ES的TCP端口为9300,而不是之前练习的HTTP端口9200
+        这里只配置了一个节点的地址然添加进去,也可以配置多个从节点添加进去再返回
+         */
+        InetSocketTransportAddress node = new InetSocketTransportAddress(
+                InetAddress.getByName("localhost"),
+                9300
+        );
+        client.addTransportAddress(node);
+
+        return client;
+    }
+}
+
+1.3 控制器
+@RestController
+@RequestMapping("/es")
+public class BookController {
+    @Autowired
+    private TransportClient client;
+
+    @RequestMapping(value = "/go")
+    public String go() {
+        return "go1";
+    }
+
+    /**
+     * 根据id查询
+     *
+     * @param id book id
+     */
+    @RequestMapping(value = "/book", method = RequestMethod.GET)
+    public ResponseEntity<java.util.Map<String, Object>> get(@RequestParam("id") String id) {
+        GetResponse result = client.prepareGet("book", "novel", id).get();
+        return new ResponseEntity<>(result.getSource(), HttpStatus.OK);
+    }
+
+    /**
+     * 添加文档
+     *
+     * @param id   book id
+     * @param name book name
+     */
+    @RequestMapping(value = "/book", method = RequestMethod.POST)
+    public ResponseEntity<String> add(@RequestParam("id") String id, @RequestParam("name") String name) {
+        try {
+            // 构造ES的文档，这里注意startObject()开始构造，结束构造一定要加上endObject()
+            XContentBuilder content = XContentFactory.jsonBuilder().startObject().
+                    field("id", id)
+                    .field("name", name)
+                    .endObject();
+            IndexResponse result = client.prepareIndex("book", "novel")
+                    .setSource(content).get();
+            return new ResponseEntity<>(result.getId(), HttpStatus.OK);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+
+    /**
+     * 根据id删除book
+     *
+     * @param id book id
+     */
+    @RequestMapping(value = "/book/{id}", method = RequestMethod.DELETE)
+    public ResponseEntity<String> delete(@PathVariable(value = "id") String id) {
+        DeleteResponse result = client.prepareDelete("book", "novel", id).get();
+        return new ResponseEntity<>(result.getResult().toString(), HttpStatus.OK);
+    }
+
+    /**
+     * 更新文档，这里的Book可以不管他，这样做是为了解决PUT请求的问题，随便搞
+     */
+    @RequestMapping(value = "/book", method = RequestMethod.PUT)
+    public ResponseEntity<String> update(@RequestBody Book book) {
+        System.out.println(book);
+        // 根据id查询
+        UpdateRequest updateRequest = new UpdateRequest("book", "novel", book.getId().toString());
+        try {
+            XContentBuilder contentBuilder = XContentFactory.jsonBuilder().startObject();
+            if (StringUtils.isNotBlank(book.getName())) {
+                contentBuilder.field("name", book.getName());
+            }
+            contentBuilder.endObject();
+            updateRequest.doc(contentBuilder);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        // 进行更新
+        UpdateResponse updateResponse = new UpdateResponse();
+        try {
+            updateResponse = client.update(updateRequest).get();
+        } catch (InterruptedException | ExecutionException e) {
+            e.printStackTrace();
+        }
+        return new ResponseEntity<>(updateResponse.getResult().toString(), HttpStatus.OK);
+    }
+
+}
+
+具体项目案例见Jacksonary/elasticsearch_data中的es_java_api模块；
+
+对于最新的ES 6.4.0版本搭配Transport整合流程大体相同，但有部分改变，比如配置TCP端口时InetSocketTransportAddress改成了TransportAddress，具体过程不再赘述，参见elasticsearch_data中的es_java_api2模块
+
+【问题】
+
+运行一天后出现问题：
+
+2018-09-16 09:48:58.742 ERROR 15004 --- [nio-8080-exec-1] o.a.c.c.C.[.[.[/].[dispatcherServlet]    : Servlet.service() for servlet [dispatcherServlet] in context with path [] threw exception [Request processing failed; nested exception is NoNodeAvailableException[None of the configured nodes are available: [{#transport#-1}{NJVJTWeGTV2SqhbOX1oFiQ}{localhost}{127.0.0.1:9300}]]] with root cause
+
+org.elasticsearch.client.transport.NoNodeAvailableException: None of the configured nodes are available: [{#transport#-1}{NJVJTWeGTV2SqhbOX1oFiQ}{localhost}{127.0.0.1:9300}]
+	at org.elasticsearch.client.transport.TransportClientNodesService.ensureNodesAreAvailable(TransportClientNodesService.java:347) ~[elasticsearch-5.5.0.jar:5.5.0]
+	at org.elasticsearch.client.transport.TransportClientNodesService.execute(TransportClientNodesService.java:245) ~[elasticsearch-5.5.0.jar:5.5.0]
+	at org.elasticsearch.client.transport.TransportProxyClient.execute(TransportProxyClient.java:59) ~[elasticsearch-5.5.0.jar:5.5.0]
+	at org.elasticsearch.client.transport.TransportClient.doExecute(TransportClient.java:363) ~[elasticsearch-5.5.0.jar:5.5.0]
+	at org.elasticsearch.client.support.AbstractClient.execute(AbstractClient.java:408) ~[elasticsearch-5.5.0.jar:5.5.0]
+	at org.elasticsearch.action.ActionRequestBuilder.execute(ActionRequestBuilder.java:80) ~[elasticsearch-5.5.0.jar:5.5.0]
+	at org.elasticsearch.action.ActionRequestBuilder.execute(ActionRequestBuilder.java:54) ~[elasticsearch-5.5.0.jar:5.5.0]
+	at org.elasticsearch.action.ActionRequestBuilder.get(ActionRequestBuilder.java:62) ~[elasticsearch-5.5.0.jar:5.5.0]
+	at com.glodon.controllers.BookController.get(BookController.java:28) ~[classes/:na]
+
+
+2018-09-16 09:49:27.782 ERROR 15004 --- [nio-8080-exec-6] o.a.c.c.C.[.[.[/].[dispatcherServlet]    : Servlet.service() for servlet [dispatcherServlet] in context with path [] threw exception [Request processing failed; nested exception is NoNodeAvailableException[None of the configured nodes are available: [{#transport#-1}{NJVJTWeGTV2SqhbOX1oFiQ}{localhost}{127.0.0.1:9300}]]] with root cause
+
+org.elasticsearch.client.transport.NoNodeAvailableException: None of the configured nodes are available: [{#transport#-1}{NJVJTWeGTV2SqhbOX1oFiQ}{localhost}{127.0.0.1:9300}]
+	at org.elasticsearch.client.transport.TransportClientNodesService.ensureNodesAreAvailable(TransportClientNodesService.java:347) ~[elasticsearch-5.5.0.jar:5.5.0]
+	at org.elasticsearch.client.transport.TransportClientNodesService.execute(TransportClientNodesService.java:245) ~[elasticsearch-5.5.0.jar:5.5.0]
+	at org.elasticsearch.client.transport.TransportProxyClient.execute(TransportProxyClient.java:59) ~[elasticsearch-5.5.0.jar:5.5.0]
+	at org.elasticsearch.client.transport.TransportClient.doExecute(TransportClient.java:363) ~[elasticsearch-5.5.0.jar:5.5.0]
+	at org.elasticsearch.client.support.AbstractClient.execute(AbstractClient.java:408) ~[elasticsearch-5.5.0.jar:5.5.0]
+
+
+随后的几次又出现这样的问题org.elasticsearch.client.transport.NoNodeAvailableException: None of the configured nodes are available，一番查找，解释莫非以下几种：
+
+TCP端口和HTTP搞混或者IP写错，误写成9200。反查本案例正确；
+集群名改了之后，配置Client这个Bean时没有在Settings中put进去。反查本案例正确；
+重启SpringBoot项目没有报错，重启ES执行查询报错信息消失，解决方案不明，报错原因未知！
+
+2. 整合案例二(使用REST Client)
+ 上面的案例1是基于TCP和ES通信的(而且TransPort将来会被抛弃……)，官方也给出了基于HTTP的客户端REST Client(推荐使用)，官方给出来的REST Client有Java Low Level REST Client和Java Hight Level REST Client两个，前者兼容所有版本的ES，后者是基于前者开发出来的，只暴露了部分API，待完善。这个案例中使用Java Low Level REST Client，有如下的一些特点：
+
+最小化依赖；
+提供跨所有可用节点的负载平衡；
+提供节点故障和特定响应代码时的故障转移；
+提供失败重连的惩罚机制(是否对一个连接失败的节点尝试重连，取决于它连续失败的次数，尝试重连且失败的次数越多，客户端在再次尝试重连这个节点时等的时间就越长。说那么多，太复杂了，其实给一个场景就是：我找你玩儿，你不答应，我伤自尊了，下次去找你我隔了一个星期再去找你，你又不答应，我又伤自尊了，下次再找你的话，那我就隔两个星期，依次类推)；
+持久连接；
+跟踪请求和响应的日志记录；
+可选的集群节点自动发现功能；
+这里使用的ES版本为最新版的6.4.0，其实官方推这个REST Client，个人还是觉得是因为它是基于HTTP端口去通信的，便于操作，而且跟ES版本几乎没有关系。
+
+2.1 引入依赖
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<parent>
+    <artifactId>elasticsearch_data</artifactId>
+    <groupId>com.glodon</groupId>
+    <version>1.0-SNAPSHOT</version>
+</parent>
+<modelVersion>4.0.0</modelVersion>
+
+<artifactId>es_java_rest</artifactId>
+
+<dependencies>
+    <dependency>
+        <groupId>org.elasticsearch.client</groupId>
+        <artifactId>elasticsearch-rest-client</artifactId>
+        <version>6.4.0</version>
+    </dependency>
+        <!--引入json进行HTTP序列化-->
+    <dependency>
+        <groupId>org.json</groupId>
+        <artifactId>json</artifactId>
+        <version>20160810</version>
+    </dependency>
+</dependencies>
+
+<build>
+    <plugins>
+        <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-shade-plugin</artifactId>
+            <version>3.1.0</version>
+            <executions>
+                <execution>
+                    <phase>package</phase>
+                    <goals><goal>shade</goal></goals>
+                    <configuration>
+                        <relocations>
+                            <relocation>
+                                <pattern>org.apache.http</pattern>
+                                <shadedPattern>hidden.org.apache.http</shadedPattern>
+                            </relocation>
+                            <relocation>
+                                <pattern>org.apache.logging</pattern>
+                                <shadedPattern>hidden.org.apache.logging</shadedPattern>
+                            </relocation>
+                            <relocation>
+                                <pattern>org.apache.commons.codec</pattern>
+                                <shadedPattern>hidden.org.apache.commons.codec</shadedPattern>
+                            </relocation>
+                            <relocation>
+                                <pattern>org.apache.commons.logging</pattern>
+                                <shadedPattern>hidden.org.apache.commons.logging</shadedPattern>
+                            </relocation>
+                        </relocations>
+                    </configuration>
+                </execution>
+            </executions>
+        </plugin>
+    </plugins>
+</build>
+
+</project>
+
+2.2 配置文件
+基本配置如下
+
+@Configuration
+public class RestConfig {
+    @Bean
+    public RestClient getClient() throws KeyStoreException, NoSuchAlgorithmException, KeyManagementException {
+        // 如果有多个从节点可以持续在内部new多个HttpHost，参数1是ip,参数2是HTTP端口，参数3是通信协议
+        RestClientBuilder clientBuilder = RestClient.builder(new HttpHost("localhost", 9200, "http"));
+
+        // 添加其他配置，返回来的还是RestClientBuilder对象，这些配置都是可选的
+        // clientBuilder.setXX()...
+
+        // 最后配置好的clientBuilder再build一下即可得到真正的Client
+        return clientBuilder.build();
+    }
+}
+
+2.2.1 RestClientBuilder中的其中配置
+上述的基本配置过程省去了很多东西，可以根据自己需求适当添加以下的一些配置：
+
+【1. 设置请求头】
+
+// 设置请求头，每个请求都会带上这个请求头
+Header[] defaultHeaders = {new BasicHeader("header", "value")};
+clientBuilder.setDefaultHeaders(defaultHeaders);
+
+【2. 设置超时时间】
+
+// 设置超时时间，多次尝试同一请求时应该遵守的超时。默认值为30秒，与默认套接字超时相同。若自定义套接字超时，则应相应地调整最大重试超时
+clientBuilder.setMaxRetryTimeoutMillis(60000);
+1
+2
+【3. 设置节点失败监听器】
+
+// 设置监听器，每次节点失败都可以监听到，可以作额外处理
+clientBuilder.setFailureListener(new RestClient.FailureListener() {
+    @Override
+    public void onFailure(Node node) {
+        super.onFailure(node);
+        System.out.println(node.getName() + "==节点失败了");
+    }
+});
+
+【4. 设置节点选择器】
+
+/* 配置节点选择器，客户端以循环方式将每个请求发送到每一个配置的节点上，
+发送请求的节点，用于过滤客户端，将请求发送到这些客户端节点，默认向每个配置节点发送，
+这个配置通常是用户在启用嗅探时向专用主节点发送请求（即只有专用的主节点应该被HTTP请求命中）
+*/
+clientBuilder.setNodeSelector(NodeSelector.SKIP_DEDICATED_MASTERS);
+
+除了上面有简单需求外，还可以自定义节点选择器的需求：
+
+// 进行详细的配置
+clientBuilder.setNodeSelector(new NodeSelector() {
+    // 设置分配感知节点选择器，允许选择本地机架中的节点（如果有），否则转到任何机架中的任何其他节点。
+    @Override
+    public void select(Iterable<Node> nodes) {
+        boolean foundOne = false;
+        for (Node node: nodes) {
+            String rackId = node.getAttributes().get("rack_id").get(0);
+            if ("rack_one".equals(rackId)) {
+                foundOne = true;
+                break;
+            }
+        }
+        if (foundOne) {
+            Iterator<Node> nodesIt = nodes.iterator();
+            while (nodesIt.hasNext()) {
+                Node node = nodesIt.next();
+                String rackId = node.getAttributes().get("rack_id").get(0);
+                if ("rack_one".equals(rackId) == false) {
+                    nodesIt.remove();
+                }
+            }
+        }
+    }
+});
+
+【5. 配置HTTP异步请求ES的线程数】
+
+/* 配置异步请求的线程数量，Apache Http Async Client默认启动一个调度程序线程，以及由连接管理器使用的许多工作线程
+（与本地检测到的处理器数量一样多，取决于Runtime.getRuntime().availableProcessors()返回的数量）。线程数可以修改如下,
+这里是修改为1个线程，即默认情况
+*/
+clientBuilder.setHttpClientConfigCallback(new RestClientBuilder.HttpClientConfigCallback() {
+    @Override
+    public HttpAsyncClientBuilder customizeHttpClient(HttpAsyncClientBuilder httpAsyncClientBuilder) {
+        return httpAsyncClientBuilder.setDefaultIOReactorConfig(
+                IOReactorConfig.custom().setIoThreadCount(1).build()
+        );
+    }
+});
+
+【6. 配置连接超时和套接字超时】
+
+/*
+    配置请求超时，将连接超时（默认为1秒）和套接字超时（默认为30秒）增加，
+    这里配置完应该相应地调整最大重试超时（默认为30秒），即上面的setMaxRetryTimeoutMillis，一般于最大的那个值一致即60000
+    */
+clientBuilder.setRequestConfigCallback(new RestClientBuilder.RequestConfigCallback() {
+    @Override
+    public RequestConfig.Builder customizeRequestConfig(RequestConfig.Builder requestConfigBuilder) {
+        // 连接5秒超时，套接字连接60s超时
+        return requestConfigBuilder.setConnectTimeout(5000).setSocketTimeout(60000);
+    }
+});
+
+【7. 配置ES安全认证】
+
+/*
+如果ES设置了密码，那这里也提供了一个基本的认证机制，下面设置了ES需要基本身份验证的默认凭据提供程序
+    */
+final CredentialsProvider credentialsProvider = new BasicCredentialsProvider();
+credentialsProvider.setCredentials(AuthScope.ANY,
+        new UsernamePasswordCredentials("user", "password"));
+clientBuilder.setHttpClientConfigCallback(new RestClientBuilder.HttpClientConfigCallback() {
+    @Override
+    public HttpAsyncClientBuilder customizeHttpClient(HttpAsyncClientBuilder httpClientBuilder) {
+        return httpClientBuilder.setDefaultCredentialsProvider(credentialsProvider);
+    }
+});
+
+/*
+上面采用异步机制实现抢先认证，这个功能也可以禁用，这意味着每个请求都将在没有授权标头的情况下发送，然后查看它是否被接受，
+并且在收到HTTP 401响应后，它再使用基本认证头重新发送完全相同的请求，这个可能是基于安全、性能的考虑
+    */
+clientBuilder.setHttpClientConfigCallback(new RestClientBuilder.HttpClientConfigCallback() {
+    @Override
+    public HttpAsyncClientBuilder customizeHttpClient(HttpAsyncClientBuilder httpClientBuilder) {
+        // 禁用抢先认证的方式
+        httpClientBuilder.disableAuthCaching();
+        return httpClientBuilder.setDefaultCredentialsProvider(credentialsProvider);
+    }
+});
+
+【8. 配置通信加密】
+
+/*
+配置通信加密，有多种方式：setSSLContext、setSSLSessionStrategy和setConnectionManager(它们的重要性逐渐递增)
+    */
+KeyStore truststore = KeyStore.getInstance("jks");
+try (InputStream is = Files.newInputStream(keyStorePath)) {
+    truststore.load(is, keyStorePass.toCharArray());
+}
+SSLContextBuilder sslBuilder = SSLContexts.custom().loadTrustMaterial(truststore, null);
+final SSLContext sslContext = sslBuilder.build();
+clientBuilder.setHttpClientConfigCallback(new RestClientBuilder.HttpClientConfigCallback() {
+    @Override
+    public HttpAsyncClientBuilder customizeHttpClient(HttpAsyncClientBuilder httpClientBuilder) {
+        return httpClientBuilder.setSSLContext(sslContext);
+    }
+});
+
+2.3 控制器
+主要看getEsInfo这个方法和它的返回结果
+
+@RestController
+@RequestMapping("/rest/book")
+public class BookController {
+    @Autowired
+    private RestClient client;
+
+//    // RequestOptions类保存应在同一应用程序中的多个请求之间共享的部分请求
+//    private static final RequestOptions COMMON_OPTIONS;
+//
+//    static {
+//        RequestOptions.Builder builder = RequestOptions.DEFAULT.toBuilder();
+//        // 添加所有请求所需的任何标头。
+//        builder.addHeader("Authorization", "Bearer " + TOKEN);
+//        // 自定义响应使用者
+//        builder.setHttpAsyncResponseConsumerFactory(
+//                new HttpAsyncResponseConsumerFactory.HeapBufferedResponseConsumerFactory(30 * 1024 * 1024 * 1024));
+//        COMMON_OPTIONS = builder.build();
+//    }
+
+    @RequestMapping(value = "/go", method = RequestMethod.GET)
+    public ResponseEntity<String> go() {
+        return new ResponseEntity<>("go", HttpStatus.OK);
+    }
+
+    /**
+     * 同步执行HTTP请求
+     * @return
+     * @throws IOException
+     */
+    @RequestMapping(value = "/es", method = RequestMethod.GET)
+    public ResponseEntity<String> getEsInfo() throws IOException {
+        // 构造HTTP请求，第一个参数是请求方法，第二个参数是服务器的端点，host默认是http://localhost:9200
+        Request request = new Request("GET", "/");
+//        // 设置其他一些参数比如美化json
+//        request.addParameter("pretty", "true");
+//        // 设置请求体
+//        request.setEntity(new NStringEntity("{\"json\":\"text\"}", ContentType.APPLICATION_JSON));
+//        // 还可以将其设置为String，默认为ContentType为application/json
+//        request.setJsonEntity("{\"json\":\"text\"}");
+
+        /*
+        performRequest是同步的，将阻塞调用线程并在请求成功时返回Response，如果失败则抛出异常
+        内部属性可以取出来通过下面的方法
+         */
+        Response response = client.performRequest(request);
+//        // 获取请求行
+//        RequestLine requestLine = response.getRequestLine();
+//        // 获取host
+//        HttpHost host = response.getHost();
+//        // 获取状态码
+//        int statusCode = response.getStatusLine().getStatusCode();
+//        // 获取响应头
+//        Header[] headers = response.getHeaders();
+        // 获取响应体
+        String responseBody = EntityUtils.toString(response.getEntity());
+        return new ResponseEntity<>(responseBody, HttpStatus.OK);
+    }
+
+
+    /**
+     * 异步执行HTTP请求
+     * @return
+     */
+    @RequestMapping(value = "/es/asyn", method = RequestMethod.GET)
+    public ResponseEntity<String> asynchronous() {
+        Request request = new Request(
+                "GET",
+                "/");
+        client.performRequestAsync(request, new ResponseListener() {
+            @Override
+            public void onSuccess(Response response) {
+                System.out.println("异步执行HTTP请求并成功");
+            }
+
+            @Override
+            public void onFailure(Exception exception) {
+                System.out.println("异步执行HTTP请求并失败");
+            }
+        });
+        return null;
+    }
+
+    /**
+     * 并行异步执行HTTP请求
+     */
+    @RequestMapping(value = "/ps", method = RequestMethod.POST)
+    public void parallAsyn(@RequestBody Book[] documents) {
+//        final CountDownLatch latch = new CountDownLatch(documents.length);
+//        for (int i = 0; i < documents.length; i++) {
+//            Request request = new Request("PUT", "/posts/doc/" + i);
+//            //let's assume that the documents are stored in an HttpEntity array
+//            request.setEntity(documents[i]);
+//            client.performRequestAsync(
+//                    request,
+//                    new ResponseListener() {
+//                        @Override
+//                        public void onSuccess(Response response) {
+//
+//                            latch.countDown();
+//                        }
+//
+//                        @Override
+//                        public void onFailure(Exception exception) {
+//
+//                            latch.countDown();
+//                        }
+//                    }
+//            );
+//        }
+//        latch.await();
+    }
+
+        /**
+     * 添加ES对象, Book的ID就是ES中存储的document的ID，所以最好不要为空，自定义生成的ID太浮夸
+     *
+     * @return ResponseEntity
+     * @throws IOException
+     */
+    @RequestMapping(value = "/", method = RequestMethod.POST)
+    public ResponseEntity<String> add(@RequestBody Book book) throws IOException {
+        // 构造HTTP请求，第一个参数是请求方法，第二个参数是服务器的端点，host默认是http://localhost:9200，
+        // endpoint直接指定为index/type的形式
+        Request request = new Request("POST", new StringBuilder("/book/book/").
+                append(book.getId()).toString());
+        // 设置其他一些参数比如美化json
+        request.addParameter("pretty", "true");
+
+        JSONObject jsonObject = new JSONObject(book);
+        System.out.println(jsonObject.toString());
+        // 设置请求体并指定ContentType，如果不指定默认为APPLICATION_JSON
+        request.setEntity(new NStringEntity(jsonObject.toString()));
+
+        // 发送HTTP请求
+        Response response = client.performRequest(request);
+
+        // 获取响应体, id: AWXvzZYWXWr3RnGSLyhH
+        String responseBody = EntityUtils.toString(response.getEntity());
+        return new ResponseEntity<>(responseBody, HttpStatus.OK);
+    }
+
+    /**
+     * 根据id获取ES对象
+     *
+     * @param id
+     * @return
+     * @throws IOException
+     */
+    @RequestMapping(value = "/{id}", method = RequestMethod.GET)
+    public ResponseEntity<String> getBookById(@PathVariable("id") String id) {
+        Request request = new Request("GET", new StringBuilder("/book/book/").
+                append(id).toString());
+        // 添加json返回优化
+        request.addParameter("pretty", "true");
+        Response response = null;
+        String responseBody = null;
+        try {
+            // 执行HHTP请求
+            response = client.performRequest(request);
+            responseBody = EntityUtils.toString(response.getEntity());
+        } catch (IOException e) {
+            return new ResponseEntity<>("can not found the book by your id", HttpStatus.NOT_FOUND);
+        }
+        return new ResponseEntity<>(responseBody, HttpStatus.OK);
+    }
+
+    /**
+     * 根据id更新Book
+     *
+     * @param id
+     * @param book
+     * @return
+     */
+    @RequestMapping(value = "/{id}", method = RequestMethod.PUT)
+    public ResponseEntity<String> updateBook(@PathVariable("id") String id, @RequestBody Book book) throws IOException {
+        // 构造HTTP请求
+        Request request = new Request("POST", new StringBuilder("/book/book/").
+                append(id).append("/_update").toString());
+        request.addParameter("pretty", "true");
+
+        // 将数据丢进去，这里一定要外包一层“doc”，否则内部不能识别
+        JSONObject jsonObject = new JSONObject();
+        jsonObject.put("doc", new JSONObject(book));
+        request.setEntity(new NStringEntity(jsonObject.toString()));
+
+        // 执行HTTP请求
+        Response response = client.performRequest(request);
+
+        // 获取返回的内容
+        String responseBody = EntityUtils.toString(response.getEntity());
+
+        return new ResponseEntity<>(responseBody, HttpStatus.OK);
+    }
+
+    /**
+     * 使用脚本更新Book
+     * @param id
+     * @param
+     * @return
+     * @throws IOException
+     */
+    @RequestMapping(value = "/update2/{id}", method = RequestMethod.PUT)
+    public ResponseEntity<String> updateBook2(@PathVariable("id") String id, @RequestParam("name") String name) throws IOException {
+        // 构造HTTP请求
+        Request request = new Request("POST", new StringBuilder("/book/book/").
+                append(id).append("/_update").toString());
+        request.addParameter("pretty", "true");
+
+        JSONObject jsonObject = new JSONObject();
+        // 创建脚本语言，如果是字符变量，必须加单引号
+        StringBuilder op1 = new StringBuilder("ctx._source.name=").append("'" + name + "'");
+        jsonObject.put("script", op1);
+
+        request.setEntity(new NStringEntity(jsonObject.toString(), ContentType.APPLICATION_JSON));
+
+        // 执行HTTP请求
+        Response response = client.performRequest(request);
+
+        // 获取返回的内容
+        String responseBody = EntityUtils.toString(response.getEntity());
+
+        return new ResponseEntity<>(responseBody, HttpStatus.OK);
+    }
+
+    @RequestMapping(value = "/{id}", method = RequestMethod.DELETE)
+    public ResponseEntity<String> deleteById(@PathVariable("id") String id) throws IOException {
+        Request request = new Request("DELETE", new StringBuilder("/book/book/").append(id).toString());
+        request.addParameter("pretty", "true");
+        // 执行HTTP请求
+        Response response = client.performRequest(request);
+        // 获取结果
+        String responseBody = EntityUtils.toString(response.getEntity());
+
+        return new ResponseEntity<>(responseBody, HttpStatus.OK);
+    }
+}
+
+详细案例见Jacksonary/elasticsearch_data中的es_java_rest模块
+
+3. 整合案例三（使用Spring-data-es）
+ 除了上述方式，Spring也提供了本身基于SpringData实现的一套方案spring-data-elasticsearch，版本之间的搭配建议为：
+
+spring data elasticsearch	elasticsearch
+3.1.x	6.2.2
+3.0.x	5.5.0
+2.1.x	2.4.0
+2.0.x	2.2.0
+1.3.x	1.5.2
+由于ES 6.4还没有被支持，这里选择的版本搭配为ES 6.2.2， Spring-data-es版本为3.1.0.BUILD-SNAPSHOT，结果整合失败，一直报错failed to load elasticsearch nodes : org.elasticsearch.client.transport.NoNodeAvailableException: None of the configured nodes are available，然后尝试换成Data ES 3.0.10版本成功整合，步骤如下：
+
+1.引入依赖
+
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <parent>
+        <artifactId>elasticsearch_data</artifactId>
+        <groupId>com.glodon</groupId>
+        <version>1.0-SNAPSHOT</version>
+    </parent>
+    <modelVersion>4.0.0</modelVersion>
+
+    <artifactId>es_java_data</artifactId>
+
+    <dependencies>
+        <dependency>
+            <groupId>org.springframework.data</groupId>
+            <artifactId>spring-data-elasticsearch</artifactId>
+            <version>3.0.10.RELEASE</version>
+        </dependency>
+    </dependencies>
+    <repositories>
+        <repository>
+            <id>spring-libs-release</id>
+            <name>Spring Releases</name>
+            <url>https://repo.spring.io/libs-release</url>
+            <snapshots>
+                <enabled>false</enabled>
+            </snapshots>
+        </repository>
+    </repositories>
+
+</project>
+
+2.配置Data ES
+
+spring:
+  data:
+    elasticsearch:
+      cluster-nodes: localhost:9300 # 配置IP及端口号
+      cluster-name: elasticsearch
+#      cluster-name: elasticsearch622 # 配置集群名，默认为elasticsearch，如果手动更改过，这里一定要指定
+#      repositories:
+#        enabled: true
+
+
+3.创建ElasticsearchRepository实例对象
+
+public interface BookRepository extends ElasticsearchRepository<Book, String> {
+
+    Book findByName(String name);
+    List<Book> findByAuthor(String author);
+    Book findBookById(String id);
+}
+
+4.配置Repositories扫描
+
+/**
+ * @author liuwg-a
+ * @date 2018/9/18 14:04
+ * @description 基础包的注释驱动配置，配置自动扫描的repositories根目录
+ */
+@Configuration
+@EnableElasticsearchRepositories(basePackages = "com.glodon.repositories")
+public interface ESConfig {
+}
+
+5.控制器一顿操作，增、删、改、查
+
+package com.glodon.controllers;
+
+import com.glodon.models.Book;
+import com.glodon.repositories.BookRepository;
+import org.apache.commons.lang3.StringUtils;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+/**
+ * @author liuwg-a
+ * @date 2018/9/18 10:43
+ * @description
+ */
+@RequestMapping("/book")
+@RestController
+public class BookController {
+
+    @Autowired
+    BookRepository bookRepository;
+
+    @RequestMapping(value = "/add_index", method = RequestMethod.POST)
+    public ResponseEntity<String> indexDoc(@RequestBody Book book) {
+        System.out.println("book===" + book);
+        bookRepository.save(book);
+        return new ResponseEntity<>("save executed!", HttpStatus.OK);
+    }
+
+    @RequestMapping(value = "/", method = RequestMethod.GET)
+    public ResponseEntity<Iterable> getAll() {
+        Iterable<Book> all = bookRepository.findAll();
+        return new ResponseEntity<>(all, HttpStatus.OK);
+    }
+
+    @RequestMapping(value = "/{name}", method = RequestMethod.GET)
+    public ResponseEntity<Book> getByName(@PathVariable("name") String name) {
+        Book book = bookRepository.findByName(name);
+        return new ResponseEntity<>(book, HttpStatus.OK);
+    }
+
+    @RequestMapping(value = "/{id}", method = RequestMethod.PUT)
+    public ResponseEntity<Book> updateBook(@PathVariable("id") String id,
+                                           @RequestBody Book updateBook) {
+        Book book = bookRepository.findBookById(id);
+        if (StringUtils.isNotBlank(updateBook.getId())) {
+            book.setId(updateBook.getId());
+        }
+        if (StringUtils.isNotBlank(updateBook.getName())) {
+            book.setName(updateBook.getName());
+        }
+        if (StringUtils.isNotBlank(updateBook.getAuthor())) {
+            book.setAuthor(updateBook.getAuthor());
+        }
+        bookRepository.save(book);
+        return new ResponseEntity<>(book, HttpStatus.OK);
+    }
+
+    @RequestMapping(value = "/{id}", method = RequestMethod.DELETE)
+    public ResponseEntity<String> deleteBook(@PathVariable("id") String id) {
+        bookRepository.deleteById(id);
+        return new ResponseEntity<>("delete execute!", HttpStatus.OK);
+    }
+}
