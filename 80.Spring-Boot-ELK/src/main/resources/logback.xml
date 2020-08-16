@@ -1,14 +1,92 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <configuration>
-    <include resource="org/springframework/boot/logging/logback/base.xml"/>
 
+<!--    <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">-->
+<!--        &lt;!&ndash; encoder 默认配置为PatternLayoutEncoder &ndash;&gt;-->
+<!--        <encoder>-->
+<!--            <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>-->
+<!--        </encoder>-->
+<!--    </appender>-->
+
+    <!-- logback -->
+<!--    <include resource="org/springframework/boot/logging/logback/base.xml"/>-->
+
+    <!-- 发送日志到Elasticsearch中 -->
+<!--    <appender name="ES" class="com.internetitem.logback.elasticsearch.ElasticsearchAppender">-->
+<!--        <url>http://192.168.56.101:9200</url>-->
+<!--        <index>hello-logs-%date{yyyy-MM-dd}</index>-->
+<!--        <type>elk</type>-->
+<!--        <errorLoggerName>com.example.elk.appender</errorLoggerName>-->
+<!--        <connectTimeout>60000</connectTimeout>-->
+<!--        <properties>-->
+<!--            <property>-->
+<!--                <name>host</name>-->
+<!--                <value>${HOSTNAME}</value>-->
+<!--            </property>-->
+<!--            <property>-->
+<!--                <name>type</name>-->
+<!--                <value>elk</value>-->
+<!--            </property>-->
+<!--            <property>-->
+<!--                <name>logger</name>-->
+<!--                <value>%logger</value>-->
+<!--            </property>-->
+<!--            <property>-->
+<!--                <name>thread</name>-->
+<!--                <value>%thread</value>-->
+<!--            </property>-->
+<!--            <property>-->
+<!--                <name>bizid</name>-->
+<!--                <value>%X{bizid}</value>-->
+<!--            </property>-->
+<!--            <property>-->
+<!--                <name>bizdtl</name>-->
+<!--                <value>%X{bizdtl}</value>-->
+<!--            </property>-->
+<!--            <property>-->
+<!--                <name>act</name>-->
+<!--                <value>%X{act}</value>-->
+<!--            </property>-->
+<!--            <property>-->
+<!--                <name>oper</name>-->
+<!--                <value>%X{oper}</value>-->
+<!--            </property>-->
+<!--        </properties>-->
+<!--        <headers>-->
+<!--            <header>-->
+<!--                <name>Content-Type</name>-->
+<!--                <value>application/json</value>-->
+<!--            </header>-->
+<!--        </headers>-->
+<!--    </appender>-->
+
+    <!-- 发送日志到logstash中 -->
     <appender name="LOGSTASH" class="net.logstash.logback.appender.LogstashTcpSocketAppender">
-        <destination>172.29.22.151:9000</destination>
-        <encoder charset="UTF-8" class="net.logstash.logback.encoder.LogstashEncoder"/>
+        <destination>192.168.56.101</destination>
+        <port>4560</port>
+        <encoder charset="UTF-8" class="net.logstash.logback.encoder.LogstashEncoder">
+            <includeContext>false</includeContext>
+            <customFields>{"appName": "cs-elk", "server": "${HOSTNAME}"}</customFields>
+            <fieldNames>
+                <message>log_message</message>
+            </fieldNames>
+        </encoder>
+        <keepAliveDuration>5 minutes</keepAliveDuration>
     </appender>
 
-    <root level="INFO">
-        <appender-ref ref="LOGSTASH"/>
-        <appender-ref ref="CONSOLE"/>
+<!--    <appender name="ELASTIC" class="com.example.elk.appender.LogBackEsAppender">-->
+<!--        <url>http://192.168.56.101:9200</url>-->
+<!--        <index>hello-logs-%date{yyyy-MM-dd}</index>-->
+<!--        <type>elk</type>-->
+<!--        <errorLoggerName>com.example.elk.appender</errorLoggerName>-->
+<!--        <connectTimeout>60000</connectTimeout>-->
+<!--    </appender>-->
+
+<!--    <logger name="Test.Es.Log" level="error" additivity="false">-->
+<!--        <appender-ref ref="ELASTIC" />-->
+<!--    </logger>-->
+
+    <root level="ERROR">
+        <appender-ref ref="LOGSTASH" />
     </root>
 </configuration>

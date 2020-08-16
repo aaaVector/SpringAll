@@ -24,6 +24,12 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
+<!--            <exclusions>&lt;!&ndash; 去掉springboot默认logback配置 &ndash;&gt;-->
+<!--                <exclusion>-->
+<!--                    <groupId>org.springframework.boot</groupId>-->
+<!--                    <artifactId>spring-boot-starter-logging</artifactId>-->
+<!--                </exclusion>-->
+<!--            </exclusions>-->
         </dependency>
 
         <dependency>
@@ -32,29 +38,57 @@
             <version>1.18.4</version>
         </dependency>
 
-        <!-- 发送日志到logstash中  -->
+
+<!--        &lt;!&ndash; log4j2 &ndash;&gt;-->
+<!--        <dependency>-->
+<!--            <groupId>org.springframework.boot</groupId>-->
+<!--            <artifactId>spring-boot-starter-log4j2</artifactId>-->
+<!--        </dependency>-->
+<!--        &lt;!&ndash; log4j2日志输出到es &ndash;&gt;-->
+<!--        <dependency>-->
+<!--            <groupId>net.inemar.utility</groupId>-->
+<!--            <artifactId>log4j2elastic</artifactId>-->
+<!--            <version>3.1.0</version>-->
+<!--        </dependency>-->
+
+
+
+        <!-- 发送日志到logstash中-->
         <dependency>
             <groupId>net.logstash.logback</groupId>
             <artifactId>logstash-logback-encoder</artifactId>
-            <version>4.11</version>
+            <version>5.2</version>
         </dependency>
-        <!-- 直接将日志发送到elasticsearch中  -->
+        <!-- logback -->
         <dependency>
-            <groupId>com.internetitem</groupId>
-            <artifactId>logback-elasticsearch-appender</artifactId>
-            <version>1.6</version>
+            <groupId>ch.qos.logback</groupId>
+            <artifactId>logback-classic</artifactId>
         </dependency>
+<!--        &lt;!&ndash; 将日志发送到elasticsearch中&ndash;&gt;-->
+<!--        <dependency>-->
+<!--            <groupId>com.internetitem</groupId>-->
+<!--            <artifactId>logback-elasticsearch-appender</artifactId>-->
+<!--            <version>1.6</version>-->
+<!--        </dependency>-->
 
-        <!-- es client -->
+
+
+        <!-- es client 需要和ES版本保持一致，否则可能出现版本不一致问题 -->
         <dependency>
             <groupId>org.elasticsearch.client</groupId>
             <artifactId>elasticsearch-rest-high-level-client</artifactId>
-            <version>6.4.0</version>
+            <version>7.1.1</version>
         </dependency>
         <dependency>
             <groupId>org.elasticsearch</groupId>
             <artifactId>elasticsearch</artifactId>
-            <version>6.4.0</version>
+            <version>7.1.1</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.alibaba</groupId>
+            <artifactId>fastjson</artifactId>
+            <version>1.2.47</version>
         </dependency>
 
     </dependencies>
