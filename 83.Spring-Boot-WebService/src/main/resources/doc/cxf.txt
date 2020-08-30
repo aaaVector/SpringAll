@@ -1,0 +1,209 @@
+创建项目：spring-boot-cxf
+
+3.2 添加依赖
+
+       添加依赖，主要是SpringBoot和cxf：
+
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-parent</artifactId>
+        <version>2.1.7.RELEASE</version>
+        <relativePath /> <!-- lookup parent from repository -->
+    </parent>
+    <groupId>com.kfit</groupId>
+    <artifactId>spring-boot-cxf</artifactId>
+    <version>0.0.1-SNAPSHOT</version>
+    <name>spring-boot-cxf</name>
+    <description>Demo project for Spring Boot</description>
+
+    <properties>
+        <java.version>1.8</java.version>
+    </properties>
+
+    <dependencies>
+        <!-- cxf框架依赖 -->
+        <dependency>
+            <groupId>org.apache.cxf</groupId>
+            <artifactId>cxf-spring-boot-starter-jaxws</artifactId>
+            <version>3.3.3</version>
+        </dependency>
+
+    </dependencies>
+</project>
+
+
+3.3 创建web service服务
+
+       使用@WebService创建一个接口HelloService：
+
+package com.kfit.demo.ws;
+
+import javax.jws.WebMethod;
+import javax.jws.WebParam;
+import javax.jws.WebService;
+
+/**
+ * web services 接口
+ */
+@WebService(targetNamespace = "http://ws.demo.kfit.com") // 命名空间,一般是接口的包名倒序
+public interface HelloService {
+    @WebMethod
+    String sayHello(@WebParam(name = "userName") String name);
+}
+       实现HelloService：
+
+package com.kfit.demo.ws.impl;
+
+import javax.jws.WebService;
+import org.springframework.stereotype.Component;
+import com.kfit.demo.ws.HelloService;
+
+/**
+ *  web services 接口实现
+ */
+@WebService(serviceName = "helloService"// 服务名
+        , targetNamespace = "http://ws.demo.kfit.com"// 包名倒序，并且和接口定义保持一致
+        , endpointInterface = "com.kfit.demo.ws.HelloService") // 包名
+@Component
+public class HelloServiceImpl implements HelloService {
+
+    @Override
+    public String sayHello(String name) {
+        return "hello , " + name;
+    }
+
+}
+
+
+3.4 发布web service服务
+
+       编写好web service服务之后，需要将服务发布到指定的路径下：
+
+package com.kfit.demo.config;
+import javax.xml.ws.Endpoint;
+import org.apache.cxf.Bus;
+import org.apache.cxf.bus.spring.SpringBus;
+import org.apache.cxf.jaxws.EndpointImpl;
+import org.apache.cxf.transport.servlet.CXFServlet;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.web.servlet.ServletRegistrationBean;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import com.kfit.demo.ws.HelloService;
+
+/**
+ * 注意引入的包路径：
+ * 是：org.apache.cxf.jaxws.EndpointImpl 不是：import org.apache.cxf.endpoint.EndpointImpl
+ * 还有：import javax.xml.ws.Endpoint;
+ * @author:悟纤
+ * @date:2018年9月1日
+ */
+@Configuration
+public class CxfConfig {
+
+    @Autowired
+    private HelloService helloService;
+
+    @Bean
+    public Endpoint endpoint() {
+        EndpointImpl endpoint = new EndpointImpl(springBus(),helloService);
+        endpoint.publish("/helloService");//接口发布在目录下
+        return endpoint;
+    }
+
+    @SuppressWarnings({ "unchecked", "rawtypes" })
+    @Bean("cxfServletRegistration")
+    public ServletRegistrationBean dispatcherServlet() {
+        return new ServletRegistrationBean(new CXFServlet(), "/cxf/*");
+    }
+
+    @Bean(name = Bus.DEFAULT_BUS_ID)
+    public SpringBus springBus() {
+        return new SpringBus();
+    }
+
+}
+说明：dispatcherServlet()需要重命名，否则原本的mvc就被覆盖了。
+
+
+
+3.6 测试
+
+       启动项目，访问测试下吧：http://127.0.0.1:8080/cxf:
+
+
+
+访问可以看到一条记录，点击链接查看WSDL文档：http://127.0.0.1:8080/cxf/helloService?wsdl
+
+<wsdl:definitions
+    xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+    xmlns:wsdl="http://schemas.xmlsoap.org/wsdl/"
+    xmlns:tns="http://ws.demo.kfit.com"
+    xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/"
+    xmlns:ns1="http://schemas.xmlsoap.org/soap/http" name="helloService"
+    targetNamespace="http://ws.demo.kfit.com">
+    <wsdl:types>
+        <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+            xmlns:tns="http://ws.demo.kfit.com" elementFormDefault="unqualified"
+            targetNamespace="http://ws.demo.kfit.com" version="1.0">
+            <xs:element name="sayHello" type="tns:sayHello" />
+            <xs:element name="sayHelloResponse"
+                type="tns:sayHelloResponse" />
+            <xs:complexType name="sayHello">
+                <xs:sequence>
+                    <xs:element minOccurs="0" name="userName"
+                        type="xs:string" />
+                </xs:sequence>
+            </xs:complexType>
+            <xs:complexType name="sayHelloResponse">
+                <xs:sequence>
+                    <xs:element minOccurs="0" name="return" type="xs:string" />
+                </xs:sequence>
+            </xs:complexType>
+        </xs:schema>
+    </wsdl:types>
+    <wsdl:message name="sayHelloResponse">
+        <wsdl:part element="tns:sayHelloResponse" name="parameters">
+        </wsdl:part>
+    </wsdl:message>
+    <wsdl:message name="sayHello">
+        <wsdl:part element="tns:sayHello" name="parameters">
+        </wsdl:part>
+    </wsdl:message>
+    <wsdl:portType name="HelloService">
+        <wsdl:operation name="sayHello">
+            <wsdl:input message="tns:sayHello" name="sayHello">
+            </wsdl:input>
+            <wsdl:output message="tns:sayHelloResponse"
+                name="sayHelloResponse">
+            </wsdl:output>
+        </wsdl:operation>
+    </wsdl:portType>
+    <wsdl:binding name="helloServiceSoapBinding"
+        type="tns:HelloService">
+        <soap:binding style="document"
+            transport="http://schemas.xmlsoap.org/soap/http" />
+        <wsdl:operation name="sayHello">
+            <soap:operation soapAction="" style="document" />
+            <wsdl:input name="sayHello">
+                <soap:body use="literal" />
+            </wsdl:input>
+            <wsdl:output name="sayHelloResponse">
+                <soap:body use="literal" />
+            </wsdl:output>
+        </wsdl:operation>
+    </wsdl:binding>
+    <wsdl:service name="helloService">
+        <wsdl:port binding="tns:helloServiceSoapBinding"
+            name="HelloServiceImplPort">
+            <soap:address
+                location="http://127.0.0.1:8080/cxf/helloService" />
+        </wsdl:port>
+    </wsdl:service>
+</wsdl:definitions>
+       到此我们就已经发布了一个简单的Hello CXF。
