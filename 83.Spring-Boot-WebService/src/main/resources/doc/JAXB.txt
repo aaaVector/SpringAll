@@ -1,0 +1,28 @@
+业界的XML与Java对象的互相转换的是JAXB（Java Architecture for XML Binding) ，是一项可以根据XML Schema产生Java类的技术。该过程中，JAXB也提供了将XML实例文档反向生成Java对象树的方法，并能将Java对象树的内容重新写到XML实例文档。从另一方面来讲，JAXB提供了快速而简便的方法将XML模式绑定到Java表示，从而使得Java开发者在Java应用程序中能方便地结合XML数据和处理函数。
+
+什么是JAXB?
+1、JDK中JAXB相关的重要Class和Interface
+
+JAXBContext类，是应用的入口，用于管理XML/Java绑定信息。
+Marshaller接口，将Java对象序列化为XML数据。
+Unmarshaller接口，将XML数据反序列化为Java对象。
+
+2、JDK中JAXB相关的重要Annotation
+
+@XmlType，将Java类或枚举类型映射到XML模式类型
+@XmlAccessorType(XmlAccessType.FIELD) ，控制字段或属性的序列化。FIELD表示JAXB将自动绑定Java类中的每个非静态的（static）、非瞬态的（由@XmlTransient标注）字段到XML。其他值还有XmlAccessType.PROPERTY和XmlAccessType.NONE。
+@XmlAccessorOrder，控制JAXB 绑定类中属性和字段的排序。
+@XmlJavaTypeAdapter，使用定制的适配器（即扩展抽象类XmlAdapter并覆盖marshal()和unmarshal()方法），以序列化Java类为XML。
+@XmlElementWrapper ，对于数组或集合（即包含多个元素的成员变量），生成一个包装该数组或集合的XML元素（称为包装器）。
+@XmlRootElement，将Java类或枚举类型映射到XML元素。
+@XmlElement，将Java类的一个属性映射到与属性同名的一个XML元素。
+@XmlAttribute，将Java类的一个属性映射到与属性同名的一个XML属性。
+在以上的注解中，用的最多的是@XMLType，@XmlAccessorType，@XmlRootElement。
+使用JAXB的缘由：
+1，在项目中，有时候会有很多的XML文件，但如果可以将这些文件通过对象的方式去操作，就会减少很多操作问题，而且更加符合程序员的编码方式，
+
+2，在项目中，有时候会遇到一个页面中存在很多的实体类中的数据，而且有时候有些数据不是必需的，就是说可以通过DTO来编写这些实体类，但有时候需要将这些DTO进行预先存储，不是存储到数据库中，这样就有两种思路，可以存储在内存中，也可以存储在硬盘上，此时就可以通过将Java对象转换成XML文件存储，或者变成String类型进行存储在内存中。
+
+3，给出一个场景，比如说，一个页面中有很多个模块构成，但是这些模块都是属于一个整体的模块，当用户有操作其中几个模块的时候，但操作后的数据不是最终的数据，那这个时候首先要保存当前页面中的数据（Done），然后到其他页面进行其他操作后再转到这个页面，那么之前那个页面中的数据应该还会存在，用户可以方便查看。但是由于模块较多，如果之前就存到数据库中就会造成浪费，因为其不是最终的保存效果，而当用户想进行保存（Save），此时才进行将最终的数据保存到数据库中。在这个过程中就会用到大量的临时数据，而解决这个问题很好的方法就是可以用XML保存页面中当前的数据。
+
+接下来我们就来看下项目中怎么进行Java对象和XML之间的相互转换吧，当然我的写得Demo的数据并不全是项目中的，这里举几个字段介绍，能让小伙伴们快速上手就够了。

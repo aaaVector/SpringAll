@@ -3,18 +3,15 @@ package com.example.elk.appender;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.classic.spi.IThrowableProxy;
 import ch.qos.logback.classic.spi.StackTraceElementProxy;
-import ch.qos.logback.classic.spi.ThrowableProxy;
-import ch.qos.logback.core.LayoutBase;
 import ch.qos.logback.core.UnsynchronizedAppenderBase;
 import com.alibaba.fastjson.JSONObject;
-import lombok.extern.slf4j.Slf4j;
+import org.springframework.util.Assert;
 
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.io.Writer;
 import java.net.HttpURLConnection;
 import java.net.URL;
-import java.net.URLConnection;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
@@ -62,6 +59,7 @@ public class LogBackEsAppender extends UnsynchronizedAppenderBase<ILoggingEvent>
         } catch (Exception e) {
             e.printStackTrace();
         } finally {
+            assert urlConnection != null;
             urlConnection.disconnect();
         }
     }
@@ -69,7 +67,7 @@ public class LogBackEsAppender extends UnsynchronizedAppenderBase<ILoggingEvent>
     public String parseException(StackTraceElementProxy[] stackTrace) {
         StringBuffer sb = new StringBuffer();
         sb.append("\n");
-        Arrays.stream(stackTrace).map(x -> x.getStackTraceElement()).forEach((e) -> sb.append(e.getClassName()).append(".").append(e.getMethodName()).append("(").append(e.getFileName()).append(":").append(e.getLineNumber()).append(")").append("\n"));
+        Arrays.stream(stackTrace).map(StackTraceElementProxy::getStackTraceElement).forEach((e) -> sb.append(e.getClassName()).append(".").append(e.getMethodName()).append("(").append(e.getFileName()).append(":").append(e.getLineNumber()).append(")").append("\n"));
         return sb.toString();
     }
 

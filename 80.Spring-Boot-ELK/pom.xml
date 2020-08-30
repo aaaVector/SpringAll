@@ -51,8 +51,6 @@
 <!--            <version>3.1.0</version>-->
 <!--        </dependency>-->
 
-
-
         <!-- 发送日志到logstash中-->
         <dependency>
             <groupId>net.logstash.logback</groupId>
