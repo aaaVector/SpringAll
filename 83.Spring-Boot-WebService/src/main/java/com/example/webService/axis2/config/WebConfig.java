@@ -18,7 +18,7 @@ public class WebConfig {
     @Bean
     public ServletRegistrationBean<AxisServlet> servletRegistrationBean() {
         ServletRegistrationBean<AxisServlet> servletRegistrationBean = new ServletRegistrationBean<>(new AxisServlet(), "/services/*");
-        servletRegistrationBean.addInitParameter("axis2.repository.path", this.getClass().getResource("/WEB-INF").getPath().toString());
+        servletRegistrationBean.addInitParameter("axis2.repository.path", this.getClass().getResource("/WEB-INF").getPath());
         return servletRegistrationBean;
     }
 
