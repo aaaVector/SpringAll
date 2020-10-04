@@ -31,3 +31,28 @@ public class BeforeStartup implements ApplicationListener<ContextRefreshedEvent>
         log.info("wsdl地址：" + ADDRESS+"?wsdl");
     }
 }
+
+//@Configuration
+//public class BeforeStartup {
+//
+//    @Autowired
+//    private JwsService helloService;
+//
+//    @Bean
+//    public Endpoint endpoint() {
+//        EndpointImpl endpoint = new EndpointImpl(springBus(),helloService);
+//        endpoint.publish("/helloService");//接口发布在目录下
+//        return endpoint;
+//    }
+//
+//    @SuppressWarnings({ "unchecked", "rawtypes" })
+//    @Bean("cxfServletRegistration")
+//    public ServletRegistrationBean dispatcherServlet() {
+//        return new ServletRegistrationBean(new CXFServlet(), "/cxf/*");
+//    }
+//
+//    @Bean(name = Bus.DEFAULT_BUS_ID)
+//    public SpringBus springBus() {
+//        return new SpringBus();
+//    }
+//}
