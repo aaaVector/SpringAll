@@ -96,7 +96,7 @@ public class EntryParser {
      * @param columns 表字段数据
      */
     public void saveRowData(String tableEventType, List<CanalEntry.Column> columns) {
-        Map map = new HashMap<>(15);
+        Map<String, String> map = new HashMap<>(15);
         columns.forEach(column -> map.put(lineToHump(column.getName()),column.getValue()));
         LOGGER.info("json解析:{}", JSON.toJSON(map));
         final QueueInformation queueInfo = amqpAdmin.getQueueInfo(tableEventType.toUpperCase());

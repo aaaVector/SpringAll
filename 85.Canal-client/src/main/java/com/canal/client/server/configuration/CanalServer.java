@@ -44,11 +44,11 @@ public class CanalServer {
 
     protected void run() {
         final CanalConnector connector = getClient();
+        runners.increment();
         try {
             connector.connect();
             connector.rollback();
             Message message;
-            runners.increment();
             while (true) {
                 connector.subscribe();
                 // 获取指定数量的数据
