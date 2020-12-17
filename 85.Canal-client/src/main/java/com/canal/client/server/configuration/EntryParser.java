@@ -10,6 +10,7 @@ import org.springframework.amqp.core.QueueInformation;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -89,6 +90,7 @@ public class EntryParser {
             saveRowData(tableName + ".UPDATE",rowData.getAfterColumnsList());
         }
     }
+
 
     /**
      * 保存行数据

@@ -42,6 +42,9 @@ public class CanalServer {
         this.entryParser = entryParser;
     }
 
+    /**
+     * Canal支持mysql为row模式的binlog，其他模式则无法获取变化后的数据
+     */
     protected void run() {
         final CanalConnector connector = getClient();
         runners.increment();
