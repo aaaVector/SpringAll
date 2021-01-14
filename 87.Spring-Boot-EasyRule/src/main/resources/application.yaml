@@ -3,4 +3,4 @@ server:
 
 logging:
   level:
-    org.jeasy.rules.core.*: warn
+    org.jeasy.rules.core.DefaultRulesEngineListener: warn
