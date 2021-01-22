@@ -1,0 +1,5 @@
+
+liteflow:
+  rule-source: config/flow.xml
+server:
+  port: 80

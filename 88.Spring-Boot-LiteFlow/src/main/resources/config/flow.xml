@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<flow>
+  <nodes>
+    <node id="a" class="com.example.liteflow.nodes.AComponent"/>
+    <node id="b" class="com.example.liteflow.nodes.BComponent"/>
+    <node id="c" class="com.example.liteflow.nodes.CComponent"/>
+    <node id="d" class="com.example.liteflow.nodes.DComponent"/>
+    <node id="e" class="com.example.liteflow.nodes.EComponent"/>
+  </nodes>
+
+  <chain name="c1">
+    <then value="a,c2"/>
+    <when value="d,e"/>
+  </chain>
+  <chain name="c2">
+    <then value="a"/>
+    <when value="d,e"/>
+  </chain>
+</flow>
