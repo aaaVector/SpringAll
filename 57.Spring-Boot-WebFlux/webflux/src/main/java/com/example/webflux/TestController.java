@@ -43,7 +43,7 @@ public class TestController {
     @GetMapping(value = "async/flux", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public Flux<String> asyncFlux() {
         logger.info("async method start");
-        Flux<String> result = Flux.fromStream(IntStream.range(1, 5).mapToObj(i -> {
+        Flux<String> result = Flux.fromStream(IntStream .range(1, 5).mapToObj(i -> {
             try {
                 TimeUnit.SECONDS.sleep(1);
             } catch (InterruptedException e) {
