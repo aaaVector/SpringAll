@@ -8,7 +8,7 @@
 	<version>0.0.1-SNAPSHOT</version>
 	<packaging>jar</packaging>
 
-	<name>demo</name>
+	<name>Spring-Boot-Shiro-RememberMe</name>
 	<description>Demo project for Spring Boot</description>
 
 	<parent>
@@ -55,7 +55,7 @@
 		<dependency>
 			<groupId>com.oracle</groupId>
 			<artifactId>ojdbc6</artifactId>
-			<version>6.0</version>
+			<version>11.2.0.3</version>
 		</dependency>
 		
 		<!-- druid数据源驱动 -->
