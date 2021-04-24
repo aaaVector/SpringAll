@@ -1,0 +1,29 @@
+server:
+  port: 80
+mybatis-plus:
+  mapper-locations: classpath*:mappers/*Mapper.xml
+  type-aliases-package: com.example.mybatis.plus.entity
+
+
+
+
+eureka:
+  instance:
+    prefer-ip-address: true
+    instance-id: ${spring.cloud.client.ip-address}:${server.port}
+    lease-expiration-duration-in-seconds: 15  #默认90s
+    lease-renewal-interval-in-seconds: 5      #默认30s
+  client:
+    register-with-eureka: true
+    fetch-registry: true
+    service-url:
+      defaultZone: http://anjuxing:anjuxingeureka@localhost:8761/eureka/
+      registry-fetch-interval-seconds: 5      #默认30s
+management:
+  endpoints:
+    web:
+      exposure:
+        include: '*'
+  endpoint:
+    health:
+      show-details: ALWAYS
