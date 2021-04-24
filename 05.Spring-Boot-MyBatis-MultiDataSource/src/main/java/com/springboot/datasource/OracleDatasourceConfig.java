@@ -15,8 +15,7 @@ import org.springframework.jdbc.datasource.DataSourceTransactionManager;
 import com.alibaba.druid.spring.boot.autoconfigure.DruidDataSourceBuilder;
 
 @Configuration
-@MapperScan(basePackages = OracleDatasourceConfig.PACKAGE, 
-	sqlSessionFactoryRef = "oracleSqlSessionFactory")
+@MapperScan(basePackages = OracleDatasourceConfig.PACKAGE, sqlSessionFactoryRef = "oracleSqlSessionFactory")
 public class OracleDatasourceConfig {
 	
 	// oracledao扫描路径

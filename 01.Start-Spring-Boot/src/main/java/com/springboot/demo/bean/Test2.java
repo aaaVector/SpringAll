@@ -21,7 +21,7 @@ public class Test2 {
 //      }
       while(true) {
         LockSupport.park(this);
-        //判断是否中断要用interrupted方法清除标记，否则park直接返回cpu空转
+        //判断是否中断 要用interrupted方法清除标记，否则park直接返回cpu空转
         System.out.println(Thread.currentThread().isInterrupted());
 
       }
